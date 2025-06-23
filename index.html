@@ -1496,14 +1496,12 @@ Return only valid JSON, no explanations.`;
             // Save to localStorage
             saveEntry(confirmedEntry);
 
-                        // Close overlay and reset
+                                    // Close overlay and reset
             hitlOverlay.style.display = 'none';
             resetForm();
 
             // Refresh notes overview
             loadNotesOverview();
-
-            alert('✅ Entry saved successfully!');
         }
 
         function cancelHitL() {
