@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - Personal Note & Task Manager</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        /* Main Note Field */
+        .note-section {
+            margin-bottom: 30px;
+        }
+
+        .note-field {
+            width: 100%;
+            min-height: 200px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+
+        .note-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .note-field.listening {
+            border-color: #48bb78;
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        /* Voice Controls */
+        .voice-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .voice-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .voice-btn:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .voice-btn.listening {
+            background: #e53e3e;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .voice-status {
+            color: #718096;
+            font-style: italic;
+        }
+
+        /* Settings Button */
+        .settings-btn {
+            background: #718096;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-btn:hover {
+            background: #4a5568;
+            transform: translateY(-2px);
+        }
+
+        /* Language Select */
+        .language-select {
+            background: #fff;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .language-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Capture Buttons */
+        .capture-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .capture-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .capture-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        /* Media Display */
+        .media-section {
+            margin-bottom: 30px;
+        }
+
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .media-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .media-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .media-item .file-info {
+            padding: 10px;
+            background: #f7fafc;
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+
+        .remove-media {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(229, 62, 62, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        /* Hidden inputs */
+        .hidden {
+            display: none;
+        }
+
+        /* HitL Overlay */
+        .hitl-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .hitl-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+
+        .hitl-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .hitl-header h2 {
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .hitl-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+
+        .hitl-section h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .hitl-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .hitl-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            resize: vertical;
+        }
+
+        .hitl-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .hitl-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .hitl-btn.primary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .hitl-btn.primary:hover {
+            background: #38a169;
+        }
+
+        .hitl-btn.secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .hitl-btn.secondary:hover {
+            background: #cbd5e0;
+        }
+
+        /* Tags */
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .tag.removable {
+            position: relative;
+            padding-right: 25px;
+        }
+
+        .tag.removable::after {
+            content: '×';
+            position: absolute;
+            right: 6px;
+            cursor: pointer;
+        }
+
+        /* Map Container */
+        .map-container {
+            height: 200px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            background: #f7fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #718096;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Notes Overview */
+        .notes-overview-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h3 {
+            color: #4a5568;
+            font-size: 1.3rem;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .notes-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .note-card {
+            background: #fff;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .note-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .note-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .note-title {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
+            line-height: 1.3;
+            margin-bottom: 5px;
+        }
+
+        .note-type {
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .note-type.task { background: #ed8936; }
+        .note-type.meeting { background: #38b2ac; }
+        .note-type.idea { background: #9f7aea; }
+        .note-type.reminder { background: #f56565; }
+
+        .note-description {
+            color: #718096;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .note-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #a0aec0;
+            margin-bottom: 10px;
+        }
+
+        .note-priority {
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .note-priority.high { background: #fed7d7; color: #c53030; }
+        .note-priority.medium { background: #feebc8; color: #dd6b20; }
+        .note-priority.low { background: #c6f6d5; color: #2f855a; }
+
+        .note-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .note-keyword {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+
+        .note-attachments {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            align-items: center;
+        }
+
+        .attachment-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .attachment-indicator.has-images {
+            background: #bee3f8;
+            color: #2b6cb0;
+        }
+
+        .attachment-indicator.has-files {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+
+        .delete-note {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(229, 62, 62, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .note-card:hover .delete-note {
+            opacity: 1;
+        }
+
+        .delete-note:hover {
+            background: #e53e3e;
+        }
+
+        .empty-notes {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            padding: 40px;
+            background: #f7fafc;
+            border-radius: 15px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .capture-section {
+                flex-direction: column;
+            }
+
+            .capture-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .hitl-modal {
+                width: 95%;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 AI Assistant</h1>
+            <p>Voice-first note taking with intelligent data extraction</p>
+        </div>
+
+        <!-- Voice Controls -->
+        <div class="voice-controls">
+            <button id="voiceBtn" class="voice-btn">
+                🎤 Start Listening
+            </button>
+            <select id="languageSelect" class="language-select">
+                <option value="de-DE">🇩🇪 Deutsch</option>
+                <option value="en-US">🇺🇸 English</option>
+            </select>
+            <button id="settingsBtn" class="settings-btn">
+                ⚙️ Settings
+            </button>
+            <span id="voiceStatus" class="voice-status">Klicken Sie, um Spracheingabe zu starten</span>
+        </div>
+
+        <!-- Main Note Field -->
+        <div class="note-section">
+            <textarea id="noteField" class="note-field" placeholder="Start typing or speaking your notes here..."></textarea>
+        </div>
+
+        <!-- Capture Buttons -->
+        <div class="capture-section">
+            <button id="photoBtn" class="capture-btn">
+                📷 Take Photo
+            </button>
+            <button id="uploadBtn" class="capture-btn">
+                📁 Upload Files
+            </button>
+            <button id="processBtn" class="capture-btn" style="background: #ed8936;">
+                ✨ Process with AI
+            </button>
+        </div>
+
+        <!-- Hidden File Inputs -->
+        <input type="file" id="fileInput" class="hidden" multiple accept="image/*,text/*,.txt,.md,.doc,.docx,.pdf">
+
+        <!-- Camera Modal -->
+        <div id="cameraModal" class="hitl-overlay" style="display: none;">
+            <div class="hitl-modal" style="max-width: 600px;">
+                <div class="hitl-header">
+                    <h2>📷 Take Photo</h2>
+                    <p>Position your camera and click capture</p>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <video id="cameraVideo" autoplay style="width: 100%; max-width: 500px; border-radius: 10px; background: #000;"></video>
+                    <canvas id="cameraCanvas" class="hidden"></canvas>
+                </div>
+
+                <div class="hitl-buttons">
+                    <button id="captureBtn" class="hitl-btn primary">📸 Capture Photo</button>
+                    <button id="closeCameraBtn" class="hitl-btn secondary">❌ Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Media Display -->
+        <div class="media-section">
+            <h3>Captured Media & Files</h3>
+            <div id="mediaGrid" class="media-grid"></div>
+        </div>
+
+        <!-- Saved Notes Overview -->
+        <div class="notes-overview-section">
+            <div class="section-header">
+                <h3>📝 Saved Notes</h3>
+                <button id="refreshNotesBtn" class="refresh-btn">🔄 Refresh</button>
+            </div>
+            <div id="notesOverview" class="notes-overview"></div>
+        </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settingsOverlay" class="hitl-overlay">
+        <div class="hitl-modal">
+            <div class="hitl-header">
+                <h2>⚙️ Settings</h2>
+                <p>Configure your AI Assistant</p>
+            </div>
+
+            <div class="hitl-section">
+                <h3>🔑 OpenAI API Configuration</h3>
+                <input type="password" id="apiKeyInput" class="hitl-input" placeholder="Enter your OpenAI API key..." autocomplete="off">
+                <small style="color: #718096; display: block; margin-top: 5px;">
+                    Your API key is stored locally in your browser and never sent to any server except OpenAI.
+                </small>
+                <div style="margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4a5568;">
+                        <input type="checkbox" id="showApiKey" style="margin: 0;">
+                        Show API key
+                    </label>
+                </div>
+            </div>
+
+            <div class="hitl-section">
+                <h3>🤖 AI Model Settings</h3>
+                <select id="modelSelect" class="hitl-input">
+                    <option value="gpt-4.1">GPT-4.1</option>
+                </select>
+            </div>
+
+            <div class="hitl-buttons">
+                <button id="settingsSave" class="hitl-btn primary">💾 Save Settings</button>
+                <button id="settingsCancel" class="hitl-btn secondary">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Details Overlay -->
+    <div id="noteDetailsOverlay" class="hitl-overlay">
+        <div class="hitl-modal">
+            <div class="hitl-header">
+                <h2>📝 Note Details</h2>
+                <p>Complete information about this note</p>
+            </div>
+
+            <div id="noteDetailsContent">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+
+            <div class="hitl-buttons">
+                <button id="noteDetailsClose" class="hitl-btn secondary">❌ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HitL Overlay -->
+    <div id="hitlOverlay" class="hitl-overlay">
+        <div class="hitl-modal">
+            <div class="hitl-header">
+                <h2>🧠 AI Analysis Complete</h2>
+                <p>Please review and confirm the extracted information</p>
+            </div>
+
+            <div id="hitlContent">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+
+            <div class="hitl-buttons">
+                <button id="hitlOk" class="hitl-btn primary">✅ Confirm & Save</button>
+                <button id="hitlCancel" class="hitl-btn secondary">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Variables
+        let recognition = null;
+        let isListening = false;
+        let currentEntry = {};
+        let mediaFiles = [];
+
+        // DOM Elements
+        const noteField = document.getElementById('noteField');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const languageSelect = document.getElementById('languageSelect');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const photoBtn = document.getElementById('photoBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const processBtn = document.getElementById('processBtn');
+        const fileInput = document.getElementById('fileInput');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const closeCameraBtn = document.getElementById('closeCameraBtn');
+        const mediaGrid = document.getElementById('mediaGrid');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const showApiKey = document.getElementById('showApiKey');
+        const modelSelect = document.getElementById('modelSelect');
+        const settingsSave = document.getElementById('settingsSave');
+        const settingsCancel = document.getElementById('settingsCancel');
+        const refreshNotesBtn = document.getElementById('refreshNotesBtn');
+        const notesOverview = document.getElementById('notesOverview');
+        const noteDetailsOverlay = document.getElementById('noteDetailsOverlay');
+        const noteDetailsContent = document.getElementById('noteDetailsContent');
+        const noteDetailsClose = document.getElementById('noteDetailsClose');
+        const hitlOverlay = document.getElementById('hitlOverlay');
+        const hitlContent = document.getElementById('hitlContent');
+        const hitlOk = document.getElementById('hitlOk');
+        const hitlCancel = document.getElementById('hitlCancel');
+
+                // Initialize Application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSpeechRecognition();
+            loadFromStorage();
+            setupEventListeners();
+            loadNotesOverview();
+
+            // Auto-start voice recognition if user has used it before
+            const voicePreference = localStorage.getItem('voiceAutoStart');
+            if (voicePreference === 'true') {
+                setTimeout(startListening, 1000);
+            }
+        });
+
+        // Speech Recognition Setup
+        function initializeSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = languageSelect.value || 'de-DE';
+
+                recognition.onstart = function() {
+                    isListening = true;
+                    voiceBtn.textContent = '🔴 Stop Listening';
+                    voiceBtn.classList.add('listening');
+                    noteField.classList.add('listening');
+                    const lang = languageSelect.value;
+                    const langText = lang === 'de-DE' ? 'Hörend... Sprechen Sie jetzt' : 'Listening... Speak now';
+                    voiceStatus.textContent = langText;
+                };
+
+                recognition.onresult = function(event) {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    // Insert the final transcript at cursor position
+                    if (finalTranscript) {
+                        const cursorPosition = noteField.selectionStart;
+                        const textBefore = noteField.value.substring(0, cursorPosition);
+                        const textAfter = noteField.value.substring(cursorPosition);
+                        noteField.value = textBefore + finalTranscript + textAfter;
+
+                        // Move cursor to end of inserted text
+                        const newPosition = cursorPosition + finalTranscript.length;
+                        noteField.setSelectionRange(newPosition, newPosition);
+
+                        autoSave();
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    voiceStatus.textContent = `Error: ${event.error}`;
+                    stopListening();
+                };
+
+                recognition.onend = function() {
+                    stopListening();
+                };
+            } else {
+                voiceBtn.style.display = 'none';
+                languageSelect.style.display = 'none';
+                voiceStatus.textContent = 'Speech recognition not supported in this browser';
+            }
+        }
+
+        // Voice Control Functions
+        function startListening() {
+            if (recognition && !isListening) {
+                // Update language before starting
+                recognition.lang = languageSelect.value || 'de-DE';
+                recognition.start();
+                localStorage.setItem('voiceAutoStart', 'true');
+                localStorage.setItem('voiceLanguage', languageSelect.value);
+            }
+        }
+
+        function stopListening() {
+            if (recognition && isListening) {
+                recognition.stop();
+                isListening = false;
+                voiceBtn.textContent = '🎤 Start Listening';
+                voiceBtn.classList.remove('listening');
+                noteField.classList.remove('listening');
+                const lang = languageSelect.value;
+                const statusText = lang === 'de-DE' ? 'Klicken Sie, um Spracheingabe zu starten' : 'Click to start voice input';
+                voiceStatus.textContent = statusText;
+            }
+        }
+
+        // Event Listeners Setup
+        function setupEventListeners() {
+            // Voice button
+            voiceBtn.addEventListener('click', function() {
+                if (isListening) {
+                    stopListening();
+                } else {
+                    startListening();
+                }
+            });
+
+            // Note field auto-save
+            noteField.addEventListener('blur', autoSave);
+            noteField.addEventListener('input', debounce(autoSave, 2000));
+
+            // Language selection
+            languageSelect.addEventListener('change', function() {
+                localStorage.setItem('voiceLanguage', languageSelect.value);
+
+                // Update status text based on language
+                if (!isListening) {
+                    const lang = languageSelect.value;
+                    const statusText = lang === 'de-DE' ? 'Klicken Sie, um Spracheingabe zu starten' : 'Click to start voice input';
+                    voiceStatus.textContent = statusText;
+                }
+
+                // If currently listening, restart with new language
+                if (isListening) {
+                    stopListening();
+                    setTimeout(startListening, 500);
+                }
+            });
+
+            // Settings button
+            settingsBtn.addEventListener('click', showSettings);
+
+            // Media capture buttons
+            photoBtn.addEventListener('click', openCamera);
+            uploadBtn.addEventListener('click', () => fileInput.click());
+            processBtn.addEventListener('click', processWithAI);
+
+            // Camera controls
+            captureBtn.addEventListener('click', capturePhoto);
+            closeCameraBtn.addEventListener('click', closeCamera);
+
+            // File inputs
+            fileInput.addEventListener('change', handleFileUpload);
+
+            // Settings overlay buttons
+            settingsSave.addEventListener('click', saveSettings);
+            settingsCancel.addEventListener('click', cancelSettings);
+            showApiKey.addEventListener('change', toggleApiKeyVisibility);
+
+            // Notes overview buttons
+            refreshNotesBtn.addEventListener('click', loadNotesOverview);
+            noteDetailsClose.addEventListener('click', closeNoteDetails);
+
+            // HitL overlay buttons
+            hitlOk.addEventListener('click', confirmHitL);
+            hitlCancel.addEventListener('click', cancelHitL);
+
+            // Close overlays on background click
+            settingsOverlay.addEventListener('click', function(e) {
+                if (e.target === settingsOverlay) {
+                    cancelSettings();
+                }
+            });
+
+            cameraModal.addEventListener('click', function(e) {
+                if (e.target === cameraModal) {
+                    closeCamera();
+                }
+            });
+
+            noteDetailsOverlay.addEventListener('click', function(e) {
+                if (e.target === noteDetailsOverlay) {
+                    closeNoteDetails();
+                }
+            });
+
+            hitlOverlay.addEventListener('click', function(e) {
+                if (e.target === hitlOverlay) {
+                    cancelHitL();
+                }
+            });
+        }
+
+        // Camera Functions
+        let cameraStream = null;
+
+        async function openCamera() {
+            try {
+                // Request camera access
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'environment' // Use back camera if available
+                    }
+                });
+
+                cameraVideo.srcObject = cameraStream;
+                cameraModal.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+
+                let errorMessage = 'Unable to access camera. ';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += 'Please allow camera access and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += 'No camera found on this device.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += 'Camera not supported in this browser.';
+                } else {
+                    errorMessage += 'Please check your camera settings.';
+                }
+
+                alert(errorMessage);
+            }
+        }
+
+        function capturePhoto() {
+            if (!cameraStream) {
+                alert('Camera not available');
+                return;
+            }
+
+            // Set canvas dimensions to match video
+            const video = cameraVideo;
+            cameraCanvas.width = video.videoWidth;
+            cameraCanvas.height = video.videoHeight;
+
+            // Draw video frame to canvas
+            const context = cameraCanvas.getContext('2d');
+            context.drawImage(video, 0, 0);
+
+            // Convert canvas to data URL
+            const dataURL = cameraCanvas.toDataURL('image/jpeg', 0.8);
+
+            // Create media item
+            const timestamp = new Date();
+            const mediaItem = {
+                type: 'image',
+                data: dataURL,
+                name: `Photo_${timestamp.toISOString().slice(0, 19).replace(/:/g, '-')}.jpg`,
+                timestamp: timestamp.toISOString()
+            };
+
+            mediaFiles.push(mediaItem);
+            displayMedia();
+            autoSave();
+
+            // Close camera
+            closeCamera();
+
+            alert('📸 Photo captured successfully!');
+        }
+
+        function closeCamera() {
+            // Stop camera stream
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+
+            // Hide modal
+            cameraModal.style.display = 'none';
+            cameraVideo.srcObject = null;
+        }
+
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const mediaItem = {
+                        type: file.type.startsWith('image/') ? 'image' : 'file',
+                        data: e.target.result,
+                        name: file.name,
+                        size: file.size,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    // If it's a text file, also extract content
+                    if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+                        mediaItem.textContent = e.target.result;
+                    }
+
+                    mediaFiles.push(mediaItem);
+                    displayMedia();
+                    autoSave();
+                };
+
+                if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+                    reader.readAsText(file);
+                } else {
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        function displayMedia() {
+            mediaGrid.innerHTML = '';
+            mediaFiles.forEach((item, index) => {
+                const mediaElement = document.createElement('div');
+                mediaElement.className = 'media-item';
+
+                if (item.type === 'image') {
+                    mediaElement.innerHTML = `
+                        <img src="${item.data}" alt="${item.name}">
+                        <div class="file-info">${item.name}</div>
+                        <button class="remove-media" onclick="removeMedia(${index})">×</button>
+                    `;
+                } else {
+                    mediaElement.innerHTML = `
+                        <div class="file-info">
+                            <strong>📄 ${item.name}</strong><br>
+                            <small>${formatFileSize(item.size)} • ${new Date(item.timestamp).toLocaleString()}</small>
+                        </div>
+                        <button class="remove-media" onclick="removeMedia(${index})">×</button>
+                    `;
+                }
+
+                mediaGrid.appendChild(mediaElement);
+            });
+        }
+
+        function removeMedia(index) {
+            mediaFiles.splice(index, 1);
+            displayMedia();
+            autoSave();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+                // Settings Functions
+                function showSettings() {
+            // Load current settings
+            const savedApiKey = localStorage.getItem('openaiApiKey');
+            const savedModel = localStorage.getItem('openaiModel') || 'gpt-4.1';
+
+            if (savedApiKey) {
+                apiKeyInput.value = savedApiKey;
+            }
+            modelSelect.value = savedModel;
+
+            settingsOverlay.style.display = 'block';
+            setTimeout(() => apiKeyInput.focus(), 100);
+        }
+
+        function saveSettings() {
+            const apiKey = apiKeyInput.value.trim();
+            const model = modelSelect.value;
+
+            if (!apiKey) {
+                alert('Please enter an OpenAI API key.');
+                return;
+            }
+
+            // Basic API key validation
+            if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
+                alert('Please enter a valid OpenAI API key (should start with "sk-").');
+                return;
+            }
+
+            localStorage.setItem('openaiApiKey', apiKey);
+            localStorage.setItem('openaiModel', model);
+
+            settingsOverlay.style.display = 'none';
+            alert('✅ Settings saved successfully!');
+        }
+
+        function cancelSettings() {
+            settingsOverlay.style.display = 'none';
+            apiKeyInput.value = '';
+            showApiKey.checked = false;
+            apiKeyInput.type = 'password';
+        }
+
+        function toggleApiKeyVisibility() {
+            apiKeyInput.type = showApiKey.checked ? 'text' : 'password';
+        }
+
+        // AI Processing Functions
+        async function processWithAI() {
+            const noteContent = noteField.value.trim();
+
+            // Validation: ensure at least one field has content
+            if (!noteContent && mediaFiles.length === 0) {
+                alert('Please add some notes or media before processing with AI.');
+                return;
+            }
+
+            // Check if API key is configured
+            const apiKey = localStorage.getItem('openaiApiKey');
+            if (!apiKey) {
+                alert('Please configure your OpenAI API key in Settings first.');
+                showSettings();
+                return;
+            }
+
+            // Show loading state
+            processBtn.innerHTML = '<span class="loading"></span> Processing...';
+            processBtn.disabled = true;
+
+            try {
+                const aiResults = await callOpenAIAPI(noteContent);
+                showHitLOverlay(aiResults);
+            } catch (error) {
+                console.error('AI processing error:', error);
+                alert('❌ Error processing with AI: ' + error.message);
+
+                // If it's an API key error, show settings
+                if (error.message.includes('API key') || error.message.includes('401')) {
+                    showSettings();
+                }
+            } finally {
+                // Reset button
+                processBtn.innerHTML = '🧠 Process with AI';
+                processBtn.disabled = false;
+            }
+        }
+
+        // OpenAI API Integration
+        async function callOpenAIAPI(noteContent) {
+            const apiKey = localStorage.getItem('openaiApiKey');
+            const model = localStorage.getItem('openaiModel') || 'gpt-4.1';
+
+            // Include text from uploaded files
+            let fullContent = noteContent;
+            const textFiles = mediaFiles.filter(f => f.textContent);
+            if (textFiles.length > 0) {
+                fullContent += '\n\nUploaded text files:\n' + textFiles.map(f => `${f.name}:\n${f.textContent}`).join('\n\n');
+            }
+
+            const prompt = `Analyze the following note and extract structured information. Return a JSON object with these fields:
+
+{
+  "shortTitle": "A concise title (max 50 chars)",
+  "description": "A brief description or summary",
+  "type": "One of: note, task, meeting, idea, reminder",
+  "keywords": ["array", "of", "relevant", "keywords"],
+  "persons": ["array", "of", "people", "mentioned"],
+  "nextStepsTasks": [{"text": "task description", "message": "Task: task description"}],
+  "releaseInfo": {"persons": ["people to share with"], "timestamp": "when to share", "message": "sharing message"} or null,
+  "location": {"address": "extracted address", "lat": null, "lng": null} or null,
+  "priority": "low, medium, or high",
+  "message": "A general message or note about the content"
+}
+
+Note content:
+${fullContent}
+
+Return only valid JSON, no explanations.`;
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are an expert at analyzing notes and extracting structured information. Always return valid JSON.'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 1000
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const content = data.choices[0].message.content.trim();
+
+            try {
+                return JSON.parse(content);
+            } catch (parseError) {
+                console.error('Failed to parse AI response:', content);
+                throw new Error('AI returned invalid JSON. Please try again.');
+            }
+        }
+
+
+
+        // HitL (Human-in-the-Loop) Functions
+        function showHitLOverlay(aiResults) {
+            currentEntry = {
+                noteField: noteField.value,
+                images: mediaFiles.filter(f => f.type === 'image'),
+                documents: mediaFiles.filter(f => f.type === 'file'),
+                timestamp: new Date().toISOString(),
+                ...aiResults
+            };
+
+            hitlContent.innerHTML = generateHitLHTML(aiResults);
+            hitlOverlay.style.display = 'block';
+
+            // Focus on the first input
+            setTimeout(() => {
+                const firstInput = hitlContent.querySelector('input, textarea');
+                if (firstInput) firstInput.focus();
+            }, 100);
+        }
+
+        function generateHitLHTML(results) {
+            let html = '';
+
+            // Short Title
+            html += `
+                <div class="hitl-section">
+                    <h3>📝 Short Title</h3>
+                    <input type="text" class="hitl-input" id="hitl-title" value="${results.shortTitle || ''}" placeholder="Enter a short title...">
+                </div>
+            `;
+
+            // Description
+            html += `
+                <div class="hitl-section">
+                    <h3>📄 Description</h3>
+                    <textarea class="hitl-textarea" id="hitl-description" placeholder="Enter description...">${results.description || ''}</textarea>
+                </div>
+            `;
+
+            // Type
+            html += `
+                <div class="hitl-section">
+                    <h3>🏷️ Type</h3>
+                    <select class="hitl-input" id="hitl-type">
+                        <option value="note" ${results.type === 'note' ? 'selected' : ''}>Note</option>
+                        <option value="task" ${results.type === 'task' ? 'selected' : ''}>Task</option>
+                        <option value="meeting" ${results.type === 'meeting' ? 'selected' : ''}>Meeting</option>
+                        <option value="idea" ${results.type === 'idea' ? 'selected' : ''}>Idea</option>
+                        <option value="reminder" ${results.type === 'reminder' ? 'selected' : ''}>Reminder</option>
+                    </select>
+                </div>
+            `;
+
+            // Keywords
+            html += `
+                <div class="hitl-section">
+                    <h3>🏷️ Keywords</h3>
+                    <input type="text" class="hitl-input" id="hitl-keywords" value="${(results.keywords || []).join(', ')}" placeholder="Enter keywords separated by commas...">
+                    <div class="tags-container" id="keywords-tags">
+                        ${(results.keywords || []).map(keyword => `<span class="tag removable">${keyword}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Priority
+            html += `
+                <div class="hitl-section">
+                    <h3>⚡ Priority</h3>
+                    <select class="hitl-input" id="hitl-priority">
+                        <option value="low" ${results.priority === 'low' ? 'selected' : ''}>Low</option>
+                        <option value="medium" ${results.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                        <option value="high" ${results.priority === 'high' ? 'selected' : ''}>High</option>
+                    </select>
+                </div>
+            `;
+
+            // Persons
+            if (results.persons && results.persons.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>👥 People Mentioned</h3>
+                        <input type="text" class="hitl-input" id="hitl-persons" value="${results.persons.join(', ')}" placeholder="Enter names separated by commas...">
+                    </div>
+                `;
+            }
+
+            // Tasks
+            if (results.nextStepsTasks && results.nextStepsTasks.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>✅ Extracted Tasks</h3>
+                        ${results.nextStepsTasks.map((task, index) => `
+                            <div style="margin-bottom: 10px;">
+                                <input type="text" class="hitl-input" id="hitl-task-${index}" value="${task.text}" placeholder="Task description...">
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Release Info
+            if (results.releaseInfo) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📤 Release/Sharing Information</h3>
+                        <input type="text" class="hitl-input" id="hitl-release-persons" value="${(results.releaseInfo.persons || []).join(', ')}" placeholder="People to share with...">
+                        <input type="text" class="hitl-input" id="hitl-release-time" value="${results.releaseInfo.timestamp || ''}" placeholder="When to share...">
+                        <textarea class="hitl-textarea" id="hitl-release-message" placeholder="Message to include...">${results.releaseInfo.message || ''}</textarea>
+                    </div>
+                `;
+            }
+
+            // Location
+            if (results.location) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📍 Location</h3>
+                        <input type="text" class="hitl-input" id="hitl-location" value="${results.location.address || ''}" placeholder="Enter address...">
+                        <div class="map-container">
+                            📍 Map integration would appear here
+                        </div>
+                    </div>
+                `;
+            }
+
+            // General Message
+            html += `
+                <div class="hitl-section">
+                    <h3>💬 General Message</h3>
+                    <textarea class="hitl-textarea" id="hitl-message" placeholder="Additional notes or messages...">${results.message || ''}</textarea>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function confirmHitL() {
+            // Collect all the confirmed data from the HitL form
+            const confirmedEntry = {
+                ...currentEntry,
+                shortTitle: document.getElementById('hitl-title')?.value || '',
+                description: document.getElementById('hitl-description')?.value || '',
+                type: document.getElementById('hitl-type')?.value || 'note',
+                keywords: document.getElementById('hitl-keywords')?.value.split(',').map(k => k.trim()).filter(k => k),
+                priority: document.getElementById('hitl-priority')?.value || 'low',
+                persons: document.getElementById('hitl-persons')?.value.split(',').map(p => p.trim()).filter(p => p) || [],
+                message: document.getElementById('hitl-message')?.value || '',
+                isDone: false,
+                rating: null
+            };
+
+            // Collect tasks
+            const taskElements = hitlContent.querySelectorAll('[id^="hitl-task-"]');
+            confirmedEntry.nextStepsTasks = Array.from(taskElements).map(el => ({
+                text: el.value,
+                message: `Task: ${el.value}`
+            })).filter(task => task.text.trim());
+
+            // Collect release info if present
+            const releasePersons = document.getElementById('hitl-release-persons')?.value;
+            const releaseTime = document.getElementById('hitl-release-time')?.value;
+            const releaseMessage = document.getElementById('hitl-release-message')?.value;
+
+            if (releasePersons || releaseTime || releaseMessage) {
+                confirmedEntry.releaseInfo = {
+                    persons: releasePersons ? releasePersons.split(',').map(p => p.trim()).filter(p => p) : [],
+                    timestamp: releaseTime || '',
+                    message: releaseMessage || ''
+                };
+            }
+
+            // Collect location if present
+            const locationAddress = document.getElementById('hitl-location')?.value;
+            if (locationAddress) {
+                confirmedEntry.location = {
+                    address: locationAddress,
+                    lat: null,
+                    lng: null
+                };
+            }
+
+            // Save to localStorage
+            saveEntry(confirmedEntry);
+
+                        // Close overlay and reset
+            hitlOverlay.style.display = 'none';
+            resetForm();
+
+            // Refresh notes overview
+            loadNotesOverview();
+
+            alert('✅ Entry saved successfully!');
+        }
+
+        function cancelHitL() {
+            hitlOverlay.style.display = 'none';
+            currentEntry = {};
+        }
+
+        // Storage Functions
+        function saveEntry(entry) {
+            const entries = getStoredEntries();
+            entry.id = Date.now(); // Simple ID generation
+            entries.push(entry);
+            localStorage.setItem('aiAssistantEntries', JSON.stringify(entries));
+        }
+
+        function getStoredEntries() {
+            const stored = localStorage.getItem('aiAssistantEntries');
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        function autoSave() {
+            const currentData = {
+                noteField: noteField.value,
+                mediaFiles: mediaFiles,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('aiAssistantCurrentSession', JSON.stringify(currentData));
+        }
+
+        function loadFromStorage() {
+            const currentSession = localStorage.getItem('aiAssistantCurrentSession');
+            if (currentSession) {
+                const data = JSON.parse(currentSession);
+                noteField.value = data.noteField || '';
+                mediaFiles = data.mediaFiles || [];
+                displayMedia();
+            }
+
+            // Load saved language preference (default to German)
+            const savedLanguage = localStorage.getItem('voiceLanguage') || 'de-DE';
+            languageSelect.value = savedLanguage;
+            // Update status text based on saved language
+            const statusText = savedLanguage === 'de-DE' ? 'Klicken Sie, um Spracheingabe zu starten' : 'Click to start voice input';
+            voiceStatus.textContent = statusText;
+        }
+
+        function resetForm() {
+            noteField.value = '';
+            mediaFiles = [];
+            displayMedia();
+            localStorage.removeItem('aiAssistantCurrentSession');
+        }
+
+        // Utility Functions
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + Enter to process with AI
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                processWithAI();
+            }
+
+            // Ctrl/Cmd + Shift + V to toggle voice
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
+                e.preventDefault();
+                if (isListening) {
+                    stopListening();
+                } else {
+                    startListening();
+                }
+            }
+        });
+
+        // Notes Overview Functions
+        function loadNotesOverview() {
+            const entries = getStoredEntries();
+
+            if (entries.length === 0) {
+                notesOverview.innerHTML = '<div class="empty-notes">No saved notes yet. Create your first note above! 📝</div>';
+                return;
+            }
+
+            // Sort entries by timestamp (newest first)
+            entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const notesHTML = entries.map(entry => createNoteCard(entry)).join('');
+            notesOverview.innerHTML = notesHTML;
+
+            // Add click listeners to note cards
+            notesOverview.querySelectorAll('.note-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('delete-note')) {
+                        e.stopPropagation();
+                        deleteNote(card.dataset.noteId);
+                    } else {
+                        showNoteDetails(card.dataset.noteId);
+                    }
+                });
+            });
+        }
+
+                function createNoteCard(entry) {
+            const date = new Date(entry.timestamp).toLocaleDateString();
+            const time = new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            const keywordsHTML = (entry.keywords || []).slice(0, 3).map(keyword =>
+                `<span class="note-keyword">${keyword}</span>`
+            ).join('');
+
+            // Check for attachments
+            const hasImages = entry.images && entry.images.length > 0;
+            const hasFiles = entry.documents && entry.documents.length > 0;
+
+            let attachmentsHTML = '';
+            if (hasImages || hasFiles) {
+                attachmentsHTML = '<div class="note-attachments">';
+
+                if (hasImages) {
+                    const imageCount = entry.images.length;
+                    attachmentsHTML += `<span class="attachment-indicator has-images">📷 ${imageCount} image${imageCount > 1 ? 's' : ''}</span>`;
+                }
+
+                if (hasFiles) {
+                    const fileCount = entry.documents.length;
+                    attachmentsHTML += `<span class="attachment-indicator has-files">📁 ${fileCount} file${fileCount > 1 ? 's' : ''}</span>`;
+                }
+
+                attachmentsHTML += '</div>';
+            }
+
+            return `
+                <div class="note-card" data-note-id="${entry.id}">
+                    <button class="delete-note" title="Delete note">×</button>
+                    <div class="note-card-header">
+                        <div class="note-title">${entry.shortTitle || 'Untitled Note'}</div>
+                        <span class="note-type ${entry.type || 'note'}">${entry.type || 'note'}</span>
+                    </div>
+                    <div class="note-description">${entry.description || entry.noteField || 'No description'}</div>
+                    <div class="note-meta">
+                        <span>${date} ${time}</span>
+                        <span class="note-priority ${entry.priority || 'low'}">${entry.priority || 'low'}</span>
+                    </div>
+                    <div class="note-keywords">${keywordsHTML}</div>
+                    ${attachmentsHTML}
+                </div>
+            `;
+        }
+
+        function showNoteDetails(noteId) {
+            const entries = getStoredEntries();
+            const entry = entries.find(e => e.id == noteId);
+
+            if (!entry) {
+                alert('Note not found!');
+                return;
+            }
+
+            const detailsHTML = generateNoteDetailsHTML(entry);
+            noteDetailsContent.innerHTML = detailsHTML;
+            noteDetailsOverlay.style.display = 'block';
+        }
+
+        function generateNoteDetailsHTML(entry) {
+            const date = new Date(entry.timestamp).toLocaleString();
+
+            let html = `
+                <div class="hitl-section">
+                    <h3>📝 Basic Information</h3>
+                    <div style="margin-bottom: 10px;"><strong>Title:</strong> ${entry.shortTitle || 'Untitled'}</div>
+                    <div style="margin-bottom: 10px;"><strong>Type:</strong> <span class="note-type ${entry.type}">${entry.type || 'note'}</span></div>
+                    <div style="margin-bottom: 10px;"><strong>Priority:</strong> <span class="note-priority ${entry.priority}">${entry.priority || 'low'}</span></div>
+                    <div style="margin-bottom: 10px;"><strong>Created:</strong> ${date}</div>
+                </div>
+            `;
+
+            if (entry.description) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📄 Description</h3>
+                        <div style="white-space: pre-wrap; line-height: 1.5;">${entry.description}</div>
+                    </div>
+                `;
+            }
+
+            if (entry.noteField) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📝 Original Notes</h3>
+                        <div style="white-space: pre-wrap; line-height: 1.5; background: #f7fafc; padding: 15px; border-radius: 8px;">${entry.noteField}</div>
+                    </div>
+                `;
+            }
+
+            if (entry.keywords && entry.keywords.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>🏷️ Keywords</h3>
+                        <div class="tags-container">
+                            ${entry.keywords.map(keyword => `<span class="tag">${keyword}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (entry.persons && entry.persons.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>👥 People Mentioned</h3>
+                        <div>${entry.persons.join(', ')}</div>
+                    </div>
+                `;
+            }
+
+            if (entry.nextStepsTasks && entry.nextStepsTasks.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>✅ Tasks</h3>
+                        ${entry.nextStepsTasks.map(task => `<div style="margin-bottom: 8px;">• ${task.text}</div>`).join('')}
+                    </div>
+                `;
+            }
+
+            if (entry.releaseInfo) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📤 Release Information</h3>
+                        ${entry.releaseInfo.persons && entry.releaseInfo.persons.length > 0 ? `<div><strong>Share with:</strong> ${entry.releaseInfo.persons.join(', ')}</div>` : ''}
+                        ${entry.releaseInfo.timestamp ? `<div><strong>When:</strong> ${entry.releaseInfo.timestamp}</div>` : ''}
+                        ${entry.releaseInfo.message ? `<div><strong>Message:</strong> ${entry.releaseInfo.message}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            if (entry.location) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📍 Location</h3>
+                        <div>${entry.location.address || 'Location information available'}</div>
+                    </div>
+                `;
+            }
+
+            if (entry.images && entry.images.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>🖼️ Images</h3>
+                        <div class="media-grid">
+                            ${entry.images.map(img => `
+                                <div class="media-item">
+                                    <img src="${img.data}" alt="${img.name}" style="width: 100%; height: 120px; object-fit: cover;">
+                                    <div class="file-info">${img.name}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (entry.documents && entry.documents.length > 0) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>📁 Documents</h3>
+                        ${entry.documents.map(doc => `
+                            <div style="margin-bottom: 8px;">📄 ${doc.name}</div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            if (entry.message) {
+                html += `
+                    <div class="hitl-section">
+                        <h3>💬 Additional Notes</h3>
+                        <div style="white-space: pre-wrap; line-height: 1.5;">${entry.message}</div>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        function closeNoteDetails() {
+            noteDetailsOverlay.style.display = 'none';
+        }
+
+        function deleteNote(noteId) {
+            if (!confirm('Are you sure you want to delete this note?')) {
+                return;
+            }
+
+            const entries = getStoredEntries();
+            const filteredEntries = entries.filter(e => e.id != noteId);
+            localStorage.setItem('aiAssistantEntries', JSON.stringify(filteredEntries));
+
+            loadNotesOverview();
+            alert('✅ Note deleted successfully!');
+        }
+
+        // Auto-focus on note field when page loads
+        window.addEventListener('load', function() {
+            noteField.focus();
+        });
+    </script>
+</body>
+</html>
