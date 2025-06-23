@@ -590,6 +590,34 @@
             border-radius: 15px;
         }
 
+        /* New Note Highlight Animation */
+        .note-card.new-note {
+            animation: newNoteHighlight 3s ease-out;
+            border-color: #48bb78;
+            box-shadow: 0 0 20px rgba(72, 187, 120, 0.3);
+        }
+
+        @keyframes newNoteHighlight {
+            0% {
+                transform: scale(0.95);
+                border-color: #48bb78;
+                box-shadow: 0 0 30px rgba(72, 187, 120, 0.6);
+                background: rgba(72, 187, 120, 0.05);
+            }
+            50% {
+                transform: scale(1.02);
+                border-color: #48bb78;
+                box-shadow: 0 0 25px rgba(72, 187, 120, 0.4);
+                background: rgba(72, 187, 120, 0.03);
+            }
+            100% {
+                transform: scale(1);
+                border-color: #e2e8f0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                background: #fff;
+            }
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .container {
@@ -1496,12 +1524,16 @@ Return only valid JSON, no explanations.`;
             // Save to localStorage
             saveEntry(confirmedEntry);
 
-                                    // Close overlay and reset
+                                                // Store the new note ID for highlighting
+            const newNoteId = confirmedEntry.id;
+
+            // Close overlay and reset
             hitlOverlay.style.display = 'none';
             resetForm();
 
-            // Refresh notes overview
+            // Refresh notes overview and highlight the new note
             loadNotesOverview();
+            setTimeout(() => highlightNewNote(newNoteId), 100);
         }
 
         function cancelHitL() {
@@ -1797,6 +1829,18 @@ Return only valid JSON, no explanations.`;
 
         function closeNoteDetails() {
             noteDetailsOverlay.style.display = 'none';
+        }
+
+                function highlightNewNote(noteId) {
+            const noteCard = document.querySelector(`[data-note-id="${noteId}"]`);
+            if (noteCard) {
+                noteCard.classList.add('new-note');
+
+                // Remove the class after animation completes
+                setTimeout(() => {
+                    noteCard.classList.remove('new-note');
+                }, 3000);
+            }
         }
 
         function deleteNote(noteId) {
