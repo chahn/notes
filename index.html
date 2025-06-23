@@ -1060,14 +1060,12 @@
                 timestamp: timestamp.toISOString()
             };
 
-            mediaFiles.push(mediaItem);
+                        mediaFiles.push(mediaItem);
             displayMedia();
             autoSave();
 
-            // Close camera
+            // Close camera automatically
             closeCamera();
-
-            alert('📸 Photo captured successfully!');
         }
 
         function closeCamera() {
