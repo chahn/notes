@@ -748,6 +748,24 @@
             </div>
 
             <div class="hitl-section">
+                <h3>🏠 LivingApps Configuration</h3>
+                <input type="password" id="livingAppsApiKeyInput" class="hitl-input" placeholder="Enter your LivingApps API key..." autocomplete="off">
+                <small style="color: #718096; display: block; margin-top: 5px;">
+                    Your LivingApps API key for storing notes in the cloud. This replaces local browser storage.
+                </small>
+                <div style="margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4a5568;">
+                        <input type="checkbox" id="showLivingAppsApiKey" style="margin: 0;">
+                        Show API key
+                    </label>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-radius: 8px; font-size: 0.85rem; color: #0369a1;">
+                    <strong>App ID:</strong> 685d67ac74fa7eb2440ecb9e<br>
+                    <strong>Base URL:</strong> https://my.living-apps.de
+                </div>
+            </div>
+
+            <div class="hitl-section">
                 <h3>🤖 AI Model Settings</h3>
                 <select id="modelSelect" class="hitl-input">
                     <option value="gpt-4.1">GPT-4.1</option>
@@ -805,6 +823,13 @@
         let currentEntry = {};
         let mediaFiles = [];
 
+        // LivingApps Configuration
+        const LIVING_APPS_CONFIG = {
+            baseUrl: 'https://my.living-apps.de',
+            appId: '685d67ac74fa7eb2440ecb9e',
+            apiKey: null // Will be loaded from settings
+        };
+
         // DOM Elements
         const noteField = document.getElementById('noteField');
         const voiceBtn = document.getElementById('voiceBtn');
@@ -824,6 +849,8 @@
         const settingsOverlay = document.getElementById('settingsOverlay');
         const apiKeyInput = document.getElementById('apiKeyInput');
         const showApiKey = document.getElementById('showApiKey');
+        const livingAppsApiKeyInput = document.getElementById('livingAppsApiKeyInput');
+        const showLivingAppsApiKey = document.getElementById('showLivingAppsApiKey');
         const modelSelect = document.getElementById('modelSelect');
         const settingsSave = document.getElementById('settingsSave');
         const settingsCancel = document.getElementById('settingsCancel');
@@ -837,7 +864,193 @@
         const hitlOk = document.getElementById('hitlOk');
         const hitlCancel = document.getElementById('hitlCancel');
 
-                // Initialize Application
+                // LivingApps API Functions
+        async function livingAppsRequest(method, endpoint, data = null) {
+            const apiKey = localStorage.getItem('livingAppsApiKey');
+            if (!apiKey) {
+                throw new Error('LivingApps API key not configured. Please set it in Settings.');
+            }
+
+            const url = `${LIVING_APPS_CONFIG.baseUrl}/rest${endpoint}`;
+            const options = {
+                method: method,
+                mode: 'cors', // Explicitly set CORS mode
+                credentials: 'omit', // Don't send cookies
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Accept': 'application/json'
+                }
+            };
+
+            // Only set Content-Type for requests with body
+            if (data) {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                console.log(`Making ${method} request to: ${url}`);
+                const response = await fetch(url, options);
+
+                console.log(`Response status: ${response.status}`);
+                console.log(`Response headers:`, response.headers);
+
+                if (!response.ok) {
+                    let errorMessage = `Request failed: ${response.status}`;
+
+                    // Handle specific CORS errors
+                    if (response.status === 0) {
+                        errorMessage = 'CORS error: Request blocked by browser. Check server CORS configuration.';
+                    } else if (response.status === 405) {
+                        errorMessage = 'Method not allowed. Server may not handle OPTIONS preflight requests.';
+                    } else {
+                        try {
+                            const errorData = await response.json();
+                            if (errorData.title) {
+                                errorMessage = errorData.title;
+                                if (errorData.detail) {
+                                    errorMessage += ` - ${errorData.detail}`;
+                                }
+                            }
+                        } catch (e) {
+                            // Ignore JSON parsing errors
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const responseData = await response.json();
+                console.log('Response data:', responseData);
+                return responseData;
+
+            } catch (error) {
+                console.error('API request failed:', error);
+
+                // Provide better error messages for common CORS issues
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    throw new Error('Network error: Possible CORS issue. Check server configuration.');
+                }
+
+                throw error;
+            }
+        }
+
+        async function createNoteRecord(noteData) {
+            const recordData = {
+                fields: {
+                    short_title: noteData.shortTitle || '',
+                    description: noteData.description || '',
+                    original_note: noteData.noteField || '',
+                    note_type: noteData.type || 'note',
+                    priority: noteData.priority || 'low',
+                    keywords: (noteData.keywords || []).join(', '),
+                    persons_mentioned: (noteData.persons || []).join(', '),
+                    tasks: noteData.nextStepsTasks ? noteData.nextStepsTasks.map(t => t.text).join('\n') : '',
+                    location_address: noteData.location ? noteData.location.address : '',
+                    // Fix: geo field expects object with lat/lng or null, not string
+                    location_coordinates: noteData.location && noteData.location.lat && noteData.location.lng
+                        ? { lat: noteData.location.lat, lng: noteData.location.lng }
+                        : null,
+                    release_info: noteData.releaseInfo ? JSON.stringify(noteData.releaseInfo) : '',
+                    ai_message: noteData.message || '',
+                    media_images: noteData.images ? JSON.stringify(noteData.images) : '',
+                    media_files: noteData.documents ? JSON.stringify(noteData.documents) : '',
+                    is_completed: noteData.isDone || false,
+                    rating: noteData.rating || null
+                }
+            };
+
+            // Clean up field values to avoid validation issues
+            Object.keys(recordData.fields).forEach(key => {
+                const value = recordData.fields[key];
+
+                // Convert empty strings to null for optional fields
+                if (value === '') {
+                    recordData.fields[key] = null;
+                }
+
+                // Ensure boolean fields are properly typed
+                if (key === 'is_completed' && typeof value === 'string') {
+                    recordData.fields[key] = value === 'true' || value === true;
+                }
+
+                // Ensure number fields are properly typed
+                if (key === 'rating' && value !== null && typeof value === 'string') {
+                    const numValue = parseFloat(value);
+                    recordData.fields[key] = isNaN(numValue) ? null : numValue;
+                }
+
+                // Handle JSON string fields - make sure they're valid JSON or null
+                if (['release_info', 'media_images', 'media_files'].includes(key) && value && typeof value === 'string') {
+                    try {
+                        JSON.parse(value);
+                        // If parsing succeeds, keep the string
+                    } catch (e) {
+                        // If parsing fails, set to null
+                        recordData.fields[key] = null;
+                    }
+                }
+            });
+
+            console.log('Creating record with data:', recordData);
+
+            try {
+                return await livingAppsRequest('POST', `/apps/${LIVING_APPS_CONFIG.appId}/records`, recordData);
+            } catch (error) {
+                console.error('Failed to create record:', error);
+                console.error('Record data that failed:', recordData);
+
+                // Provide more specific error message for field validation issues
+                if (error.message.includes('field value') || error.message.includes('type')) {
+                    throw new Error(`Field validation error: ${error.message}\n\nCheck the browser console for detailed record data.`);
+                }
+
+                throw error;
+            }
+        }
+
+        async function loadNotesFromLivingApps() {
+            try {
+                const response = await livingAppsRequest('GET', `/apps/${LIVING_APPS_CONFIG.appId}/records?orderby=r.createdat desc`);
+                return Object.values(response).map(record => {
+                    // Convert LivingApps record back to our format
+                    const fields = record.fields;
+                    return {
+                        id: record.id,
+                        shortTitle: fields.short_title || '',
+                        description: fields.description || '',
+                        noteField: fields.original_note || '',
+                        type: fields.note_type || 'note',
+                        priority: fields.priority || 'low',
+                        keywords: fields.keywords ? fields.keywords.split(',').map(k => k.trim()).filter(k => k) : [],
+                        persons: fields.persons_mentioned ? fields.persons_mentioned.split(',').map(p => p.trim()).filter(p => p) : [],
+                        nextStepsTasks: fields.tasks ? fields.tasks.split('\n').map(t => ({text: t.trim(), message: `Task: ${t.trim()}`})).filter(t => t.text) : [],
+                        location: fields.location_address ? {
+                            address: fields.location_address,
+                            lat: fields.location_coordinates && fields.location_coordinates.lat ? fields.location_coordinates.lat : null,
+                            lng: fields.location_coordinates && fields.location_coordinates.lng ? fields.location_coordinates.lng : null
+                        } : null,
+                        releaseInfo: fields.release_info ? JSON.parse(fields.release_info) : null,
+                        message: fields.ai_message || '',
+                        images: fields.media_images ? JSON.parse(fields.media_images) : [],
+                        documents: fields.media_files ? JSON.parse(fields.media_files) : [],
+                        isDone: fields.is_completed || false,
+                        rating: fields.rating || null,
+                        timestamp: record.createdat,
+                        updatedat: record.updatedat
+                    };
+                });
+            } catch (error) {
+                console.error('Error loading notes from LivingApps:', error);
+                throw error;
+            }
+        }
+
+        async function deleteNoteFromLivingApps(noteId) {
+            return await livingAppsRequest('DELETE', `/apps/${LIVING_APPS_CONFIG.appId}/records/${noteId}`);
+        }
+
+        // Initialize Application
         document.addEventListener('DOMContentLoaded', function() {
             initializeSpeechRecognition();
             loadFromStorage();
@@ -991,6 +1204,7 @@
             settingsSave.addEventListener('click', saveSettings);
             settingsCancel.addEventListener('click', cancelSettings);
             showApiKey.addEventListener('change', toggleApiKeyVisibility);
+            showLivingAppsApiKey.addEventListener('change', toggleLivingAppsApiKeyVisibility);
 
             // Notes overview buttons
             refreshNotesBtn.addEventListener('click', loadNotesOverview);
@@ -1183,10 +1397,14 @@
                 function showSettings() {
             // Load current settings
             const savedApiKey = localStorage.getItem('openaiApiKey');
+            const savedLivingAppsApiKey = localStorage.getItem('livingAppsApiKey');
             const savedModel = localStorage.getItem('openaiModel') || 'gpt-4.1';
 
             if (savedApiKey) {
                 apiKeyInput.value = savedApiKey;
+            }
+            if (savedLivingAppsApiKey) {
+                livingAppsApiKeyInput.value = savedLivingAppsApiKey;
             }
             modelSelect.value = savedModel;
 
@@ -1196,10 +1414,16 @@
 
         function saveSettings() {
             const apiKey = apiKeyInput.value.trim();
+            const livingAppsApiKey = livingAppsApiKeyInput.value.trim();
             const model = modelSelect.value;
 
             if (!apiKey) {
                 alert('Please enter an OpenAI API key.');
+                return;
+            }
+
+            if (!livingAppsApiKey) {
+                alert('Please enter a LivingApps API key.');
                 return;
             }
 
@@ -1210,6 +1434,7 @@
             }
 
             localStorage.setItem('openaiApiKey', apiKey);
+            localStorage.setItem('livingAppsApiKey', livingAppsApiKey);
             localStorage.setItem('openaiModel', model);
 
             settingsOverlay.style.display = 'none';
@@ -1219,12 +1444,19 @@
         function cancelSettings() {
             settingsOverlay.style.display = 'none';
             apiKeyInput.value = '';
+            livingAppsApiKeyInput.value = '';
             showApiKey.checked = false;
+            showLivingAppsApiKey.checked = false;
             apiKeyInput.type = 'password';
+            livingAppsApiKeyInput.type = 'password';
         }
 
         function toggleApiKeyVisibility() {
             apiKeyInput.type = showApiKey.checked ? 'text' : 'password';
+        }
+
+        function toggleLivingAppsApiKeyVisibility() {
+            livingAppsApiKeyInput.type = showLivingAppsApiKey.checked ? 'text' : 'password';
         }
 
         // AI Processing Functions
@@ -1237,10 +1469,15 @@
                 return;
             }
 
-            // Check if API key is configured
-            const apiKey = localStorage.getItem('openaiApiKey');
-            if (!apiKey) {
-                alert('Please configure your OpenAI API key in Settings first.');
+            // Check if both API keys are configured
+            const openaiApiKey = localStorage.getItem('openaiApiKey');
+            const livingAppsApiKey = localStorage.getItem('livingAppsApiKey');
+
+            if (!openaiApiKey || !livingAppsApiKey) {
+                let missingKeys = [];
+                if (!openaiApiKey) missingKeys.push('OpenAI API key');
+                if (!livingAppsApiKey) missingKeys.push('LivingApps API key');
+                alert(`Please configure your ${missingKeys.join(' and ')} in Settings first.`);
                 showSettings();
                 return;
             }
@@ -1262,7 +1499,7 @@
                 }
             } finally {
                 // Reset button
-                processBtn.innerHTML = '🧠 Process with AI';
+                processBtn.innerHTML = '✨ Process with AI';
                 processBtn.disabled = false;
             }
         }
@@ -1476,7 +1713,7 @@ Return only valid JSON, no explanations.`;
             return html;
         }
 
-        function confirmHitL() {
+        async function confirmHitL() {
             // Collect all the confirmed data from the HitL form
             const confirmedEntry = {
                 ...currentEntry,
@@ -1521,19 +1758,30 @@ Return only valid JSON, no explanations.`;
                 };
             }
 
-            // Save to localStorage
-            saveEntry(confirmedEntry);
+            try {
+                // Save to LivingApps
+                const savedRecord = await createNoteRecord(confirmedEntry);
+                const newNoteId = savedRecord.id;
 
-                                                // Store the new note ID for highlighting
-            const newNoteId = confirmedEntry.id;
+                // Close overlay and reset
+                hitlOverlay.style.display = 'none';
+                resetForm();
 
-            // Close overlay and reset
-            hitlOverlay.style.display = 'none';
-            resetForm();
+                // Refresh notes overview and highlight the new note
+                await loadNotesOverview();
+                setTimeout(() => highlightNewNote(newNoteId), 100);
 
-            // Refresh notes overview and highlight the new note
-            loadNotesOverview();
-            setTimeout(() => highlightNewNote(newNoteId), 100);
+                // Show success message
+                alert('✅ Note saved successfully to LivingApps!');
+            } catch (error) {
+                console.error('Error saving note:', error);
+                alert('❌ Error saving note: ' + error.message);
+
+                // If it's an API key error, show settings
+                if (error.message.includes('API key') || error.message.includes('not configured')) {
+                    showSettings();
+                }
+            }
         }
 
         function cancelHitL() {
@@ -1541,18 +1789,7 @@ Return only valid JSON, no explanations.`;
             currentEntry = {};
         }
 
-        // Storage Functions
-        function saveEntry(entry) {
-            const entries = getStoredEntries();
-            entry.id = Date.now(); // Simple ID generation
-            entries.push(entry);
-            localStorage.setItem('aiAssistantEntries', JSON.stringify(entries));
-        }
-
-        function getStoredEntries() {
-            const stored = localStorage.getItem('aiAssistantEntries');
-            return stored ? JSON.parse(stored) : [];
-        }
+        // Storage Functions (now using LivingApps instead of localStorage)
 
         function autoSave() {
             const currentData = {
@@ -1620,31 +1857,33 @@ Return only valid JSON, no explanations.`;
         });
 
         // Notes Overview Functions
-        function loadNotesOverview() {
-            const entries = getStoredEntries();
+        async function loadNotesOverview() {
+            try {
+                const entries = await loadNotesFromLivingApps();
 
-            if (entries.length === 0) {
-                notesOverview.innerHTML = '<div class="empty-notes">No saved notes yet. Create your first note above! 📝</div>';
-                return;
-            }
+                if (entries.length === 0) {
+                    notesOverview.innerHTML = '<div class="empty-notes">No saved notes yet. Create your first note above! 📝</div>';
+                    return;
+                }
 
-            // Sort entries by timestamp (newest first)
-            entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                const notesHTML = entries.map(entry => createNoteCard(entry)).join('');
+                notesOverview.innerHTML = notesHTML;
 
-            const notesHTML = entries.map(entry => createNoteCard(entry)).join('');
-            notesOverview.innerHTML = notesHTML;
-
-            // Add click listeners to note cards
-            notesOverview.querySelectorAll('.note-card').forEach(card => {
-                card.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('delete-note')) {
-                        e.stopPropagation();
-                        deleteNote(card.dataset.noteId);
-                    } else {
-                        showNoteDetails(card.dataset.noteId);
-                    }
+                // Add click listeners to note cards
+                notesOverview.querySelectorAll('.note-card').forEach(card => {
+                    card.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('delete-note')) {
+                            e.stopPropagation();
+                            deleteNote(card.dataset.noteId);
+                        } else {
+                            showNoteDetails(card.dataset.noteId);
+                        }
+                    });
                 });
-            });
+            } catch (error) {
+                console.error('Error loading notes:', error);
+                notesOverview.innerHTML = `<div class="empty-notes">❌ Error loading notes: ${error.message}<br><br>Please check your LivingApps API key in Settings.</div>`;
+            }
         }
 
                 function createNoteCard(entry) {
@@ -1694,18 +1933,23 @@ Return only valid JSON, no explanations.`;
             `;
         }
 
-        function showNoteDetails(noteId) {
-            const entries = getStoredEntries();
-            const entry = entries.find(e => e.id == noteId);
+        async function showNoteDetails(noteId) {
+            try {
+                const entries = await loadNotesFromLivingApps();
+                const entry = entries.find(e => e.id == noteId);
 
-            if (!entry) {
-                alert('Note not found!');
-                return;
+                if (!entry) {
+                    alert('Note not found!');
+                    return;
+                }
+
+                const detailsHTML = generateNoteDetailsHTML(entry);
+                noteDetailsContent.innerHTML = detailsHTML;
+                noteDetailsOverlay.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading note details:', error);
+                alert('❌ Error loading note details: ' + error.message);
             }
-
-            const detailsHTML = generateNoteDetailsHTML(entry);
-            noteDetailsContent.innerHTML = detailsHTML;
-            noteDetailsOverlay.style.display = 'block';
         }
 
         function generateNoteDetailsHTML(entry) {
@@ -1843,17 +2087,19 @@ Return only valid JSON, no explanations.`;
             }
         }
 
-        function deleteNote(noteId) {
+        async function deleteNote(noteId) {
             if (!confirm('Are you sure you want to delete this note?')) {
                 return;
             }
 
-            const entries = getStoredEntries();
-            const filteredEntries = entries.filter(e => e.id != noteId);
-            localStorage.setItem('aiAssistantEntries', JSON.stringify(filteredEntries));
-
-            loadNotesOverview();
-            alert('✅ Note deleted successfully!');
+            try {
+                await deleteNoteFromLivingApps(noteId);
+                await loadNotesOverview();
+                alert('✅ Note deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting note:', error);
+                alert('❌ Error deleting note: ' + error.message);
+            }
         }
 
         // Auto-focus on note field when page loads
